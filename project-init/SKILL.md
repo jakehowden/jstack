@@ -29,7 +29,22 @@ mkdir -p ~/.jstack/projects
 _PROJECT_DOC=~/.jstack/projects/$SLUG.md
 [ -f "$_PROJECT_DOC" ] && echo "PROJECT_DOC_EXISTS" || echo "PROJECT_DOC_MISSING"
 echo "SLUG: $SLUG"
+_MODEL=$(python3 -c "
+import json, os
+for path in [os.path.expanduser('~/.claude/settings.local.json'), os.path.expanduser('~/.claude/settings.json')]:
+    try:
+        with open(path) as f:
+            m = json.load(f).get('model', '')
+            if m: print(m); break
+    except: pass
+else: print('unknown')
+" 2>/dev/null)
+echo "$_MODEL" | grep -qi "opus" || echo "WRONG_MODEL: $_MODEL"
 ```
+
+If `WRONG_MODEL` appears in the output: stop immediately and output:
+
+> Wrong model: this skill requires Opus. Run `/model claude-opus-4-6` then re-run.
 
 ## Phase 1: Check for existing doc
 

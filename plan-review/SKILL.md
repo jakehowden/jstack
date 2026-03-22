@@ -30,7 +30,22 @@ _PROJECT_DOC=~/.jstack/projects/$SLUG.md
 _BRANCH=$(git branch --show-current 2>/dev/null || echo "unknown")
 echo "SLUG: $SLUG"
 echo "BRANCH: $_BRANCH"
+_MODEL=$(python3 -c "
+import json, os
+for path in [os.path.expanduser('~/.claude/settings.local.json'), os.path.expanduser('~/.claude/settings.json')]:
+    try:
+        with open(path) as f:
+            m = json.load(f).get('model', '')
+            if m: print(m); break
+    except: pass
+else: print('unknown')
+" 2>/dev/null)
+echo "$_MODEL" | grep -qi "opus" || echo "WRONG_MODEL: $_MODEL"
 ```
+
+If `WRONG_MODEL` appears in the output: stop immediately and output:
+
+> Wrong model: this skill requires Opus. Run `/model claude-opus-4-6` then re-run.
 
 If `PROJECT_DOC_FOUND`: read `~/.jstack/projects/$SLUG.md` for tech stack constraints and conventions. Reference throughout the review.
 
@@ -180,7 +195,7 @@ For each new codepath: one realistic production failure and whether a test cover
 ## Handoff
 
 Once review is complete, tell the user:
-"Plan locked. Run **/code-review** on your diff when ready, then **/code-ship** to ship."
+"Plan locked. Time to write code — **switch to Sonnet** for implementation: `/model claude-sonnet-4-6`. When done, run **/code-review** (it will remind you to switch back to Opus), then **/code-ship** to ship."
 
 ---
 

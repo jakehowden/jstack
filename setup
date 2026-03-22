@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+set -e
+
+JSTACK_DIR="$(cd "$(dirname "$0")" && pwd)"
+SKILLS_DIR="${HOME}/.claude/skills"
+JSTACK_HOME="${HOME}/.jstack"
+
+echo "Installing jstack..."
+
+# Create jstack state directories
+mkdir -p "$JSTACK_HOME/projects"
+mkdir -p "$JSTACK_HOME/bin"
+
+# Install bin utilities
+cp "$JSTACK_DIR/bin/jstack-slug" "$JSTACK_HOME/bin/jstack-slug"
+chmod +x "$JSTACK_HOME/bin/jstack-slug"
+echo "  ✓ bin/jstack-slug"
+
+# Link skills to ~/.claude/skills/
+mkdir -p "$SKILLS_DIR"
+for skill in project-init plan-feature plan-review debug document code-review code-ship; do
+  ln -sf "$JSTACK_DIR/$skill" "$SKILLS_DIR/$skill"
+  echo "  ✓ $skill"
+done
+
+echo ""
+echo "jstack installed. Skills available:"
+echo "  /project-init  — set up project context (run once per project)"
+echo "  /plan-feature  — brainstorm and design a feature"
+echo "  /plan-review   — engineering review of a plan"
+echo "  /debug         — systematic root cause debugging"
+echo "  /document      — post-ship documentation update"
+echo "  /code-review   — pre-landing PR review"
+echo "  /code-ship     — branch, commit, push, raise PR"

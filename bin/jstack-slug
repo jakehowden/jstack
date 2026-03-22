@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# jstack-slug — output project slug and sanitized branch name
+# Usage: source <(jstack-slug)  → sets SLUG and BRANCH variables
+# Or:    jstack-slug            → prints SLUG=... and BRANCH=... lines
+set -euo pipefail
+SLUG=$(git remote get-url origin 2>/dev/null | sed 's|.*[:/]\([^/]*/[^/]*\)\.git$|\1|;s|.*[:/]\([^/]*/[^/]*\)$|\1|' | tr '/' '-')
+if [ -z "$SLUG" ]; then
+  SLUG=$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null || echo "unknown")
+fi
+BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null | tr '/' '-')
+echo "SLUG=$SLUG"
+echo "BRANCH=$BRANCH"

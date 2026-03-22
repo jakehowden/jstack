@@ -18,8 +18,8 @@ echo "  ✓ bin/jstack-slug"
 
 # Link skills to ~/.claude/skills/
 mkdir -p "$SKILLS_DIR"
-for skill in project-init plan-feature plan-review debug document code-review code-ship; do
-  ln -sf "$JSTACK_DIR/$skill" "$SKILLS_DIR/$skill"
+for skill in project-init plan-feature plan-review debug document code-review code-ship testing; do
+  ln -sfn "$JSTACK_DIR/$skill" "$SKILLS_DIR/$skill"
   echo "  ✓ $skill"
 done
 
@@ -32,3 +32,4 @@ echo "  /debug         — systematic root cause debugging"
 echo "  /document      — post-ship documentation update"
 echo "  /code-review   — pre-landing PR review"
 echo "  /code-ship     — branch, commit, push, raise PR"
+echo "  /testing       — post-ship manual testing session with AI-assisted fix loop"

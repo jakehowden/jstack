@@ -31,7 +31,22 @@ _PROJECT_DOC=~/.jstack/projects/$SLUG.md
 _BRANCH=$(git branch --show-current 2>/dev/null || echo "unknown")
 echo "SLUG: $SLUG"
 echo "BRANCH: $_BRANCH"
+_MODEL=$(python3 -c "
+import json, os
+for path in [os.path.expanduser('~/.claude/settings.local.json'), os.path.expanduser('~/.claude/settings.json')]:
+    try:
+        with open(path) as f:
+            m = json.load(f).get('model', '')
+            if m: print(m); break
+    except: pass
+else: print('unknown')
+" 2>/dev/null)
+echo "$_MODEL" | grep -qi "opus" || echo "WRONG_MODEL: $_MODEL"
 ```
+
+If `WRONG_MODEL` appears in the output: stop immediately and output:
+
+> Wrong model: this skill requires Opus. Run `/model claude-opus-4-6` then re-run.
 
 If `PROJECT_DOC_FOUND`: read `~/.jstack/projects/$SLUG.md`. Load conventions (branch strategy, PR conventions) and current state (for doc update in Step 6).
 
@@ -125,6 +140,8 @@ Generate the PR body:
 - [ ] <plain-English manual step>
 - [ ] <plain-English manual step for an edge case — e.g. "Submit the form with an empty password field — confirm error message appears">
 ```
+
+<!-- CONTRACT: /testing depends on the "## Testing checklist" heading in the PR body template above. Do not rename it. -->
 
 **Testing checklist generation rules:**
 - One step per logical change in the diff

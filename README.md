@@ -5,7 +5,7 @@ Jake's personal dev workflow skill system for Claude Code.
 ## Pipeline
 
 ```
-project-init → plan-feature → plan-review → code-review → code-ship
+project-init → plan-feature → plan-review → code-review → code-ship → testing
                                                 ↑
                                              debug
                                            document
@@ -13,7 +13,8 @@ project-init → plan-feature → plan-review → code-review → code-ship
 
 Start a new project with `/project-init`. Plan features with `/plan-feature`.
 Lock in the approach with `/plan-review`. Review your diff with `/code-review`.
-Ship with `/code-ship`. Debug bugs with `/debug`. Keep docs current with `/document`.
+Ship with `/code-ship`. Test what you shipped with `/testing`. Debug bugs with `/debug`.
+Keep docs current with `/document`.
 
 ## Skills
 
@@ -26,6 +27,7 @@ Ship with `/code-ship`. Debug bugs with `/debug`. Keep docs current with `/docum
 | `/document` | Post-ship doc update — keeps README, CHANGELOG, TODOS accurate after code ships |
 | `/code-review` | Pre-landing review — SQL safety, race conditions, LLM trust boundaries, style/convention check |
 | `/code-ship` | Ship workflow — creates `feature/<name>` branch, commits, pushes, raises PR with TODO list and manual testing checklist |
+| `/testing` | Post-ship testing session — walks through the PR checklist with an AI-assisted fix loop when tests fail |
 
 ## Install
 

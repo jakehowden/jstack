@@ -30,7 +30,22 @@ _PROJECT_DOC=~/.jstack/projects/$SLUG.md
 _BRANCH=$(git branch --show-current 2>/dev/null || echo "unknown")
 echo "SLUG: $SLUG"
 echo "BRANCH: $_BRANCH"
+_MODEL=$(python3 -c "
+import json, os
+for path in [os.path.expanduser('~/.claude/settings.local.json'), os.path.expanduser('~/.claude/settings.json')]:
+    try:
+        with open(path) as f:
+            m = json.load(f).get('model', '')
+            if m: print(m); break
+    except: pass
+else: print('unknown')
+" 2>/dev/null)
+echo "$_MODEL" | grep -qi "opus" || echo "WRONG_MODEL: $_MODEL"
 ```
+
+If `WRONG_MODEL` appears in the output: stop immediately and output:
+
+> Wrong model: this skill requires Opus. Run `/model claude-opus-4-6` then re-run.
 
 If `PROJECT_DOC_FOUND`: read `~/.jstack/projects/$SLUG.md`. Use the tech stack section to narrow hypotheses — knowing the framework, database, and infra helps identify likely failure modes faster.
 

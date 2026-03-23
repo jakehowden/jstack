@@ -207,6 +207,18 @@ Supersedes: {prior filename — omit if first design on this branch}
 ## Recommended Approach
 {chosen approach with rationale}
 
+## Testing Strategy
+{auto-generated from project context — framework, test location, naming conventions}
+
+### What to Test
+{key behaviors and edge cases derived from the feature design}
+
+### Where Tests Go
+{test directory and file naming pattern, inferred from project conventions}
+
+### Coverage Notes
+{which parts of the recommended approach need test coverage and why}
+
 ## Open Questions
 {unresolved questions}
 
@@ -217,16 +229,44 @@ Supersedes: {prior filename — omit if first design on this branch}
 {concrete build tasks — what to implement first, second, third}
 ```
 
+**Testing Strategy generation rules:**
+
+1. **Read project context.** Check the project-init doc (`~/.jstack/projects/$SLUG.md`)
+   for any of these headings or keywords: `## Testing`, `## Test`, `test framework`,
+   `test runner`, `test directory`, `testing conventions`. Also check for tool/script
+   references like `npm test`, `pytest`, `go test`, `make test`.
+
+2. **If testing info found:** populate the Testing Strategy section using the detected
+   framework, test directory, and naming conventions. Reference them explicitly
+   (e.g., "Tests use Vitest, live in `src/__tests__/`, named `*.test.ts`").
+   If multiple frameworks are mentioned, reference all of them and organize
+   the testing section by suite/framework.
+
+3. **If no testing info found:** generate a framework-agnostic testing section based on
+   the feature design alone. Focus on what the key testable behaviors are. Do not
+   assume a specific framework — describe tests in terms of inputs, expected outputs,
+   and edge cases.
+
+4. **Scope guidance:**
+   - "What to Test": 3-6 bullet points covering happy path, key edge cases, and error cases.
+   - "Where Tests Go": 1-2 lines naming the directory and file naming pattern.
+   - "Coverage Notes": 2-4 bullets identifying which parts of the chosen approach carry
+     the most risk and why they need test coverage.
+
+5. **Complex setups:** If the project has multiple test suites (unit, integration, e2e),
+   organize "What to Test" by suite. Keep each suite's list to 3-5 items.
+
 ---
 
 ## Phase 5.5: Spec Review
 
-Dispatch an independent reviewer subagent. Provide the file path and ask it to review on 5 dimensions:
+Dispatch an independent reviewer subagent. Provide the file path and ask it to review on 6 dimensions:
 1. **Completeness** — All requirements addressed?
 2. **Consistency** — Any contradictions?
 3. **Clarity** — Could an engineer implement this without questions?
 4. **Scope** — Any YAGNI violations?
 5. **Feasibility** — Can this actually be built as described?
+6. **Testability** — Does the testing strategy cover the key behaviors from the recommended approach? Are there untested risk areas?
 
 Ask for a quality score (1-10) and list of issues.
 

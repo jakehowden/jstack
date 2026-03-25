@@ -41,12 +41,12 @@ for path in [os.path.expanduser('~/.claude/settings.local.json'), os.path.expand
     except: pass
 else: print('unknown')
 " 2>/dev/null)
-echo "$_MODEL" | grep -qi "opus" || echo "WRONG_MODEL: $_MODEL"
+echo "$_MODEL" | grep -qi "sonnet" || echo "WRONG_MODEL: $_MODEL"
 ```
 
 If `WRONG_MODEL` appears in the output: stop immediately and output:
 
-> Wrong model: this skill requires Opus. Run `/model claude-opus-4-6` then re-run.
+> Wrong model: this skill requires Sonnet. Run `/model claude-sonnet-4-6` then re-run.
 
 If `PROJECT_DOC_FOUND`: read `~/.jstack/projects/$SLUG.md`. Load conventions (branch strategy, PR conventions) and current state (for doc update in Step 6).
 

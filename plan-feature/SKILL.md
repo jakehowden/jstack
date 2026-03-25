@@ -75,7 +75,40 @@ For every AskUserQuestion:
    ```
    If prior designs exist, list them: "Prior designs for this project: [titles + dates]"
 
-4. Ask what the user wants to build:
+4. Check for open bugs on this repo:
+   ```bash
+   gh issue list --state open --label bug --limit 10 --json number,title,createdAt --jq '.[] | "#\(.number) \(.title) (\(.createdAt | split("T")[0]))"' 2>/dev/null
+   ```
+   If no issues found with the `bug` label, try a keyword search as fallback:
+   ```bash
+   gh issue list --state open --limit 10 --search "bug OR fix OR broken" --json number,title,createdAt --jq '.[] | "#\(.number) \(.title) (\(.createdAt | split("T")[0]))"' 2>/dev/null
+   ```
+
+   **If bugs found:** present them before the open-ended question. Ask via AskUserQuestion:
+
+   > I found some open bugs on this repo:
+   >
+   > 1. #42 — Fix login redirect loop (2026-03-20)
+   > 2. #38 — Dashboard chart crashes on empty data (2026-03-18)
+   >
+   > Would you like to work on one of these, or build something new?
+   >
+   > RECOMMENDATION: Squash bugs before building new features — less tech debt.
+   >
+   > A) Pick a bug (tell me which number)
+   > B) Build something new
+
+   **If user picks a bug:** Run `gh issue view <number> --json title,body,comments` to load
+   full context. Use the bug's title, description, and comments as the feature context for
+   all subsequent phases. The "feature" becomes "fix for #N". Skip Phase 2 builder questions —
+   the bug report already provides the problem statement. Proceed directly to Phase 3
+   (Premise Challenge) with premises derived from the bug report.
+
+   **If user picks "build something new":** Continue to step 5 as normal.
+
+   **If no bugs found:** Skip this step silently. Continue to step 5.
+
+5. Ask what the user wants to build:
 
    > What are you thinking about building or exploring? What's the idea?
 

@@ -7,14 +7,14 @@ Jake's personal dev workflow skill system for Claude Code.
 ```
 project-init → plan-feature → plan-review → code-review → code-ship → testing
                     ↑                           ↑
-                   bug                       debug
+                   code-bug                  debug
                                            document
 ```
 
 Start a new project with `/project-init`. Plan features with `/plan-feature`.
 Lock in the approach with `/plan-review`. Review your diff with `/code-review`.
 Ship with `/code-ship`. Test what you shipped with `/testing`. Debug bugs with `/debug`.
-File bugs with `/bug`. Keep docs current with `/document`.
+File bugs with `/code-bug`. Keep docs current with `/document`.
 
 ## Skills
 
@@ -28,7 +28,7 @@ File bugs with `/bug`. Keep docs current with `/document`.
 | `/code-review` | Pre-landing review — SQL safety, race conditions, LLM trust boundaries, style/convention check |
 | `/code-ship` | Ship workflow — creates `feature/<name>` branch, commits, pushes, raises PR with TODO list and manual testing checklist |
 | `/testing` | Post-ship testing session — walks through the PR checklist with an AI-assisted fix loop when tests fail |
-| `/bug` | File a bug — gathers repro steps, expected/actual behavior, creates a structured GitHub issue |
+| `/code-bug` | File a bug — gathers repro steps, expected/actual behavior, creates a structured GitHub issue |
 
 ## Install
 

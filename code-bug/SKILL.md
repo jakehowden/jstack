@@ -1,5 +1,5 @@
 ---
-name: bug
+name: code-bug
 version: 1.0.0
 description: |
   Raise a bug and create a GitHub issue. Gathers reproduction steps,
@@ -15,7 +15,7 @@ allowed-tools:
   - AskUserQuestion
 ---
 
-# /bug
+# /code-bug
 
 File a bug as a structured GitHub issue. Gathers repro steps, expected vs actual
 behavior, checks for duplicates, and creates the issue.

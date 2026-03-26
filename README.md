@@ -33,18 +33,20 @@ File bugs with `/bug`. Keep docs current with `/document`.
 ## Install
 
 ```bash
-git clone <this-repo> ~/Documents/Github/jstack
+curl -fsSL https://raw.githubusercontent.com/jakehowden/jstack/master/install.sh | bash
+```
+
+Or manually:
+
+```bash
+git clone git@github.com:jakehowden/jstack.git ~/Documents/Github/jstack
 cd ~/Documents/Github/jstack
 ./setup
 ```
 
 ## Update
 
-```bash
-cd ~/Documents/Github/jstack
-git pull
-./setup
-```
+Run the same install command — it pulls the latest and re-runs setup.
 
 ## Project context
 

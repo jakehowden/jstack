@@ -126,13 +126,15 @@ When all items are complete, proceed to Phase 4.
 
 Entered from Phase 2 when a test fails.
 
-**Track fix metadata throughout:** for each fix applied, record `{file, line, description}` for use in the Phase 4 report.
+**Track fix metadata throughout:** for each fix applied, record `{file, line, description, related_item}` for use in the Phase 4 report.
+
+**Track issues, not items:** Each distinct problem gets its own attempt counter (max 3 attempts per issue). A single test item may surface multiple distinct issues. An issue is "distinct" when the error message, failure behavior, or root cause is clearly different from the previous failure.
 
 **Fix Loop Rules:**
 - Minimal diffs only — this is a testing session, not a refactor
 - Understand the cause before proposing any fix
-- Each cycle of propose → apply → retest → fail = 1 attempt
-- After 3 failed cycles: flag the item as unresolved and return to Phase 2
+- Each cycle of propose → apply → retest → fail = 1 attempt against the current issue
+- After 3 failed cycles on the same issue: flag that issue as unresolved, ask if the user wants to continue testing the current item or return to Phase 2
 
 ### Loop steps
 
@@ -146,16 +148,29 @@ Entered from Phase 2 when a test fails.
 
 5. Ask the user to retest:
    ```
-   PR #N — "<title>". Testing: "<item>". Fix applied.
+   PR #N — "<title>". Testing: "<item>". Fix applied (attempt N of 3 for this issue).
 
    Retest: "<what to try>"
    ```
    Options:
    - A) Now passes — record fix metadata, return to Phase 2
-   - B) Still failing — propose a new fix (attempt N of 3)
-   - C) New issue found — record this item as passed (the original problem is fixed), append the new issue as an ad-hoc test item, return to Phase 2
+   - B) Same issue, still failing — propose another fix (attempt N of 3)
+   - C) Different issue — the failure is now something else
+   - D) Unrelated issue found — something broke that isn't about this test item
 
-6. After 3 failed cycles: output "Couldn't resolve this one after 3 attempts. Moving on." Record as unresolved. Return to Phase 2.
+   **On B):** Increment the attempt counter for the current issue. If this was attempt 3, go to step 6.
+
+   **On C):** The previous issue is considered resolved (record any fix metadata). Reset the attempt counter for this new issue. Loop back to step 2 with the new failure description.
+
+   **On D):** Pause the current item and issue (preserve attempt count). Ask the user to describe the unrelated issue. Enter a nested fix loop for it (same 3-attempt limit). When the unrelated issue is resolved or abandoned, resume the original item's fix loop — re-present step 5 so the user can retest the original item.
+
+6. After 3 failed cycles on the same issue: output "Couldn't resolve this issue after 3 attempts." Then ask via AskUserQuestion:
+   ```
+   The specific issue "<brief description>" is unresolved after 3 attempts.
+   ```
+   Options:
+   - A) Move on — record this item as unresolved, return to Phase 2
+   - B) This item has a different problem too — reset counter for the new issue, loop back to step 1
 
 ---
 

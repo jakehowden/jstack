@@ -24,45 +24,19 @@ Set up a project context doc so all jstack skills know what they're working with
 ## Preamble
 
 ```bash
-source <(~/.jstack/bin/jstack-slug 2>/dev/null) || SLUG=$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null || echo "unknown")
-mkdir -p ~/.jstack/projects
-_PROJECT_DOC=~/.jstack/projects/$SLUG.md
-[ -f "$_PROJECT_DOC" ] && echo "PROJECT_DOC_EXISTS" || echo "PROJECT_DOC_MISSING"
-echo "SLUG: $SLUG"
-_MODEL=$(python3 -c "
-import json, os
-for path in [os.path.expanduser('~/.claude/settings.local.json'), os.path.expanduser('~/.claude/settings.json')]:
-    try:
-        with open(path) as f:
-            m = json.load(f).get('model', '')
-            if m: print(m); break
-    except: pass
-else: print('unknown')
-" 2>/dev/null)
-echo "$_MODEL" | grep -qi "opus" || echo "WRONG_MODEL: $_MODEL"
+~/.jstack/bin/jstack-preamble opus
 ```
 
-If `WRONG_MODEL` appears in the output: stop immediately and output:
+If `WRONG_MODEL` in output: stop — tell user to run `/model claude-opus-4-6` then re-run.
 
-> Wrong model: this skill requires Opus. Run `/model claude-opus-4-6` then re-run.
+---
 
 ## Phase 1: Check for existing doc
 
-If `PROJECT_DOC_EXISTS`:
-
-1. Read the existing doc at `~/.jstack/projects/$SLUG.md`.
-2. Display a summary: "Found existing project doc for **$SLUG**. Here's what we have:"
-   Show the contents briefly (tech stack, goals, current state headline).
-3. Ask which sections to update via AskUserQuestion:
-   - A) Tech Stack & Architecture
-   - B) Goals & Success Criteria
-   - C) Current State & TODOs
-   - D) Conventions & Preferences
-   - E) All sections — full refresh
-   - F) Nothing — looks good, exit
-
-   Only re-probe the selected sections. Preserve everything else (including any
-   `code-ship` updates like resolved TODOs and "Last updated" timestamps).
+If `PROJECT_DOC_FOUND`:
+1. Read `~/.jstack/projects/$SLUG.md`. Show a brief summary (tech stack, goals, current state).
+2. Ask which sections to update via AskUserQuestion: A) Tech Stack & Architecture | B) Goals & Success Criteria | C) Current State & TODOs | D) Conventions & Preferences | E) All — full refresh | F) Nothing — looks good, exit
+3. Re-probe selected sections only. Preserve everything else including `code-ship` updates (resolved TODOs, Last updated timestamps).
 
 If `PROJECT_DOC_MISSING`: proceed through all 4 questions below.
 
@@ -70,94 +44,45 @@ If `PROJECT_DOC_MISSING`: proceed through all 4 questions below.
 
 ## Phase 2: Auto-read the repo
 
-Before asking questions, scan the repo to extract facts automatically:
-
 ```bash
 ls README.md CLAUDE.md TODOS.md package.json pyproject.toml Gemfile go.mod Cargo.toml 2>/dev/null
 ```
 
-Read whichever exist. Extract:
-- Tech stack clues (language, framework, deps from package.json/pyproject.toml/etc.)
-- Any goals or descriptions from README.md
-- Existing TODOs from TODOS.md
-- Conventions from CLAUDE.md
-
-Use these as pre-filled answers when asking questions — the user can confirm, correct, or expand.
+Read whichever exist. Extract: tech stack (language, framework, deps), goals from README, TODOs from TODOS.md, conventions from CLAUDE.md. Use as pre-filled answers.
 
 ---
 
-## Phase 3: Probing questions (one at a time)
+## Phase 3: Probing questions (one at a time, pre-populated)
 
-Ask each question via AskUserQuestion. Pre-populate with auto-detected facts where possible.
-The user can confirm, correct, or add detail.
+**Q1 — Tech Stack & Architecture:** languages, frameworks, databases, infra, unusual constraints. Pre-populate with auto-detected stack — user confirms/corrects.
 
-**Q1 — Tech Stack & Architecture**
-> What languages, frameworks, databases, and infra does this project use?
-> (I detected: [auto-detected stack] — confirm or correct)
-> Any unusual constraints or architectural decisions worth knowing?
+**Q2 — Goals & Success Criteria:** what are you trying to achieve? What does "done" look like?
 
-**Q2 — Goals & Success Criteria**
-> What are you trying to achieve with this project?
-> What does "done" or "success" look like?
+**Q3 — Current State & Known TODOs:** what exists today? What's broken or on the backlog? Pre-populate with TODOS.md items if found.
 
-**Q3 — Current State & Known TODOs**
-> What exists today? What's broken or on the backlog?
-> (I found [N] items in TODOS.md — anything else to add?)
-
-**Q4 — Conventions & Preferences**
-> How do you like to work on this project?
-> - Coding style / naming conventions
-> - Branch strategy (we'll use feature/<name> by default)
-> - Test approach
-> - PR conventions
-> - Anything else
+**Q4 — Conventions & Preferences:** coding style, naming conventions, branch strategy (default: feature/<name>), test approach, PR conventions.
 
 ---
 
 ## Phase 4: Generate and confirm
 
-Merge user answers with auto-detected facts. Present the full doc for approval:
-
-```
-Here's your project doc — does this look right?
-A) Looks good — save it
-B) Make changes (specify what)
-```
+Merge answers with auto-detected facts. Present the full doc for approval via AskUserQuestion: A) Looks good — save it | B) Make changes (specify what)
 
 ---
 
 ## Phase 5: Save
 
 Write to `~/.jstack/projects/$SLUG.md`:
-
-```markdown
+```
 # Project: <repo-name>
-Generated by /project-init on <date>
-Repo: <slug>
-Last updated: <date>
-
+Generated by /project-init on <date> | Repo: <slug> | Last updated: <date>
 ## Tech Stack
-<tech stack and architecture>
-
 ## Goals & Success Criteria
-<goals and what done looks like>
-
 ## Current State
-<what exists, what's in progress>
-
 ## Known TODOs
-<list of open items — can reference TODOS.md>
-
 ## Conventions & Preferences
-<coding style, branch strategy, test approach, PR conventions>
 ```
 
-Confirm to the user: "Project context saved to `~/.jstack/projects/$SLUG.md`. All jstack skills will now use this as context."
+"Project context saved to `~/.jstack/projects/$SLUG.md`. All jstack skills will now use this as context."
 
----
-
-## Completion Status
-
-- **DONE** — Doc written and confirmed
-- **DONE_WITH_CONCERNS** — Saved but some sections were left sparse
-- **BLOCKED** — Not in a git repo or user aborted
+**DONE** — Doc written and confirmed | **DONE_WITH_CONCERNS** — Saved with sparse sections | **BLOCKED** — Not in a git repo or user aborted

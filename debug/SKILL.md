@@ -24,81 +24,47 @@ Systematic root cause debugging. No fixes without evidence.
 ## Preamble
 
 ```bash
-source <(~/.jstack/bin/jstack-slug 2>/dev/null) || SLUG=$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null || echo "unknown")
-_PROJECT_DOC=~/.jstack/projects/$SLUG.md
-[ -f "$_PROJECT_DOC" ] && echo "PROJECT_DOC_FOUND" || echo "PROJECT_DOC_MISSING"
-_BRANCH=$(git branch --show-current 2>/dev/null || echo "unknown")
-echo "SLUG: $SLUG"
-echo "BRANCH: $_BRANCH"
-_MODEL=$(python3 -c "
-import json, os
-for path in [os.path.expanduser('~/.claude/settings.local.json'), os.path.expanduser('~/.claude/settings.json')]:
-    try:
-        with open(path) as f:
-            m = json.load(f).get('model', '')
-            if m: print(m); break
-    except: pass
-else: print('unknown')
-" 2>/dev/null)
-echo "$_MODEL" | grep -qi "opus" || echo "WRONG_MODEL: $_MODEL"
+~/.jstack/bin/jstack-preamble opus
 ```
 
-If `WRONG_MODEL` appears in the output: stop immediately and output:
-
-> Wrong model: this skill requires Opus. Run `/model claude-opus-4-6` then re-run.
-
-If `PROJECT_DOC_FOUND`: read `~/.jstack/projects/$SLUG.md`. Use the tech stack section to narrow hypotheses — knowing the framework, database, and infra helps identify likely failure modes faster.
+If `WRONG_MODEL` in output: stop — tell user to run `/model claude-opus-4-6` then re-run.
+If `PROJECT_DOC_FOUND`: read `~/.jstack/projects/$SLUG.md` tech stack section — use it to narrow hypotheses and identify likely failure modes.
 
 ---
 
 ## Iron Law
 
-**NO FIXES WITHOUT ROOT CAUSE INVESTIGATION FIRST.**
-
-Fixing symptoms creates whack-a-mole debugging. Every fix that doesn't address root cause makes the next bug harder to find. Find the root cause, then fix it.
+**NO FIXES WITHOUT ROOT CAUSE INVESTIGATION FIRST.** Fixing symptoms creates whack-a-mole debugging. Find the root cause, then fix it.
 
 ---
 
 ## Phase 1: Root Cause Investigation
 
-Gather context before forming any hypothesis.
+1. Collect symptoms: error messages, stack traces, reproduction steps. If insufficient, ask ONE question at a time via AskUserQuestion.
+2. Read the code: trace the codepath from symptom back to causes. Grep for all references.
+3. Check recent changes: `git log --oneline -20 -- <affected-files>` — regressions are in the diff.
+4. Reproduce: can you trigger the bug deterministically? If not, gather more evidence first.
 
-1. **Collect symptoms:** Read the error messages, stack traces, and reproduction steps. If the user hasn't provided enough context, ask ONE question at a time via AskUserQuestion.
-
-2. **Read the code:** Trace the code path from the symptom back to potential causes. Use Grep to find all references, Read to understand the logic.
-
-3. **Check recent changes:**
-   ```bash
-   git log --oneline -20 -- <affected-files>
-   ```
-   Was this working before? What changed? A regression means the root cause is in the diff.
-
-4. **Reproduce:** Can you trigger the bug deterministically? If not, gather more evidence before proceeding.
-
-Output: **"Root cause hypothesis: ..."** — a specific, testable claim about what is wrong and why.
+Output: **"Root cause hypothesis: ..."** — a specific, testable claim.
 
 ---
 
 ## Scope Lock
 
-After forming your root cause hypothesis, lock edits to the affected module to prevent scope creep.
-
-Identify the narrowest directory containing the affected files. Tell the user: "Restricting edits to `<dir>/` for this debug session to prevent changes to unrelated code."
-
-Write the scope to a state file:
+After forming a hypothesis, identify the narrowest directory containing the affected files:
 ```bash
 mkdir -p ~/.jstack
 echo "<detected-directory>/" > ~/.jstack/debug-scope.txt
 echo "Debug scope locked to: <detected-directory>/"
 ```
 
-If the bug spans the entire repo, skip the lock and note why.
+Tell the user the scope. If the bug spans the whole repo, skip and note why.
 
 ---
 
 ## Phase 2: Pattern Analysis
 
-Check if this bug matches a known pattern:
+Check if the bug matches a known pattern:
 
 | Pattern | Signature | Where to look |
 |---------|-----------|---------------|
@@ -106,54 +72,43 @@ Check if this bug matches a known pattern:
 | Nil/null propagation | NoMethodError, TypeError | Missing guards on optional values |
 | State corruption | Inconsistent data, partial updates | Transactions, callbacks, hooks |
 | Integration failure | Timeout, unexpected response | External API calls, service boundaries |
-| Configuration drift | Works locally, fails in staging/prod | Env vars, feature flags, DB state |
+| Configuration drift | Works locally, fails in staging | Env vars, feature flags, DB state |
 | Stale cache | Shows old data, fixes on cache clear | Redis, CDN, browser cache |
 
-Also check:
-- `TODOS.md` for related known issues
-- `git log` for prior fixes in the same area — recurring bugs in the same files are an architectural smell
+Also check `TODOS.md` for related known issues; `git log` for prior fixes in the same area (recurring bugs = architectural smell).
 
 ---
 
 ## Phase 3: Hypothesis Testing
 
-Before writing ANY fix, verify your hypothesis.
+Before writing ANY fix, verify the hypothesis.
 
-1. **Confirm the hypothesis:** Add a temporary log statement, assertion, or debug output at the suspected root cause. Does the evidence match?
-
-2. **If wrong:** Return to Phase 1. Gather more evidence. Do not guess.
-
-3. **3-strike rule:** If 3 hypotheses fail, **STOP** and use AskUserQuestion:
+1. Add a temporary log/assertion at the suspected root cause. Does the evidence match?
+2. If wrong: return to Phase 1. Do not guess.
+3. **3-strike rule:** if 3 hypotheses fail, STOP and ask via AskUserQuestion:
    ```
    3 hypotheses tested, none confirmed.
-
    A) Continue — I have a new hypothesis: [describe]
-   B) Escalate — this needs deeper knowledge of the system
-   C) Add logging — instrument the area and catch it next time
+   B) Escalate — needs deeper system knowledge
+   C) Add logging — instrument and catch it next time
    ```
 
-**Red flags:**
-- Proposing a fix before tracing data flow — you're guessing
-- "Quick fix for now" — there is no "for now"
-- Each fix reveals a new problem elsewhere — wrong layer, not wrong code
+Red flags: proposing a fix before tracing data flow; "quick fix for now"; each fix reveals a new problem elsewhere.
 
 ---
 
 ## Phase 4: Implementation
 
-Once root cause is confirmed:
-
-1. **Fix the root cause, not the symptom.** Smallest change that eliminates the actual problem.
-2. **Minimal diff:** Fewest files touched, fewest lines changed.
-3. **Write a regression test** that:
-   - **Fails** without the fix (proves the test is meaningful)
-   - **Passes** with the fix (proves the fix works)
-4. **Run the full test suite.** No regressions allowed.
-5. **If fix touches >5 files:** Use AskUserQuestion to flag the blast radius:
+Once root cause confirmed:
+1. Fix the root cause, not the symptom. Smallest change that eliminates the actual problem.
+2. Minimal diff: fewest files, fewest lines.
+3. Write a regression test that **fails** without the fix and **passes** with it.
+4. Run the full test suite. No regressions allowed.
+5. If fix touches >5 files, ask via AskUserQuestion:
    ```
-   This fix touches N files — large blast radius for a bug fix.
-   A) Proceed — root cause genuinely spans these files
-   B) Split — fix the critical path now, defer the rest
+   Fix touches N files — large blast radius.
+   A) Proceed — root cause spans these files
+   B) Split — fix critical path now, defer rest
    C) Rethink — is there a more targeted approach?
    ```
 
@@ -161,18 +116,16 @@ Once root cause is confirmed:
 
 ## Phase 5: Verification & Report
 
-Reproduce the original bug scenario and confirm it's fixed. Not optional.
-
-Run the test suite and paste the output.
+Reproduce the original bug scenario and confirm it's fixed. Not optional. Run the test suite and paste output.
 
 ```
 DEBUG REPORT
 ════════════════════════════════════════
 Symptom:         [what the user observed]
 Root cause:      [what was actually wrong]
-Fix:             [what was changed, with file:line references]
-Evidence:        [test output, reproduction attempt showing fix works]
-Regression test: [file:line of the new test]
+Fix:             [what was changed, file:line]
+Evidence:        [test output confirming fix]
+Regression test: [file:line of new test]
 Related:         [TODOS.md items, prior bugs in same area]
 Status:          DONE | DONE_WITH_CONCERNS | BLOCKED
 ════════════════════════════════════════
@@ -186,10 +139,6 @@ Status:          DONE | DONE_WITH_CONCERNS | BLOCKED
 - **Never apply a fix you cannot verify**
 - **Never say "this should fix it"** — prove it
 - **If fix touches >5 files → AskUserQuestion** about blast radius
-- **Never `git push`** — committing locally is fine, but pushing must wait until the user runs `/code-ship`
+- **Never `git push`** — committing locally is fine, pushing waits for `/code-ship`
 
-## Completion Status
-
-- **DONE** — Root cause found, fix applied, regression test written, all tests pass
-- **DONE_WITH_CONCERNS** — Fixed but cannot fully verify (intermittent, requires staging)
-- **BLOCKED** — Root cause unclear after investigation, escalated
+**DONE** — Root cause found, fix applied, regression test written, all tests pass | **DONE_WITH_CONCERNS** — Fixed but cannot fully verify | **BLOCKED** — Root cause unclear, escalated

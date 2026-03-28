@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# jstack-preamble — emit context lines for jstack skills
+# Usage: ~/.jstack/bin/jstack-preamble <opus|sonnet|any>
+set -euo pipefail
+
+REQUIRED="${1:-any}"
+
+SLUG=$(git remote get-url origin 2>/dev/null \
+  | sed 's|.*[:/]\([^/]*/[^/]*\)\.git$|\1|;s|.*[:/]\([^/]*/[^/]*\)$|\1|' \
+  | tr '/' '-' 2>/dev/null || true)
+[ -z "${SLUG:-}" ] && SLUG=$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null || echo "unknown")
+
+BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null | tr '/' '-' || echo "unknown")
+
+echo "SLUG: $SLUG"
+echo "BRANCH: $BRANCH"
+[ -f ~/.jstack/projects/"$SLUG".md ] && echo "PROJECT_DOC_FOUND" || echo "PROJECT_DOC_MISSING"
+
+if [ "$REQUIRED" != "any" ]; then
+  MODEL=$(python3 -c "
+import json, os
+for p in ['~/.claude/settings.local.json', '~/.claude/settings.json']:
+    try:
+        m = json.load(open(os.path.expanduser(p))).get('model', '')
+        if m: print(m); break
+    except: pass
+else:
+    print('unknown')
+" 2>/dev/null || echo "unknown")
+  echo "$MODEL" | grep -qi "$REQUIRED" || echo "WRONG_MODEL: $MODEL"
+fi

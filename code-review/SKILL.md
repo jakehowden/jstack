@@ -25,38 +25,19 @@ Pre-landing review. Catches structural issues and style drift before the PR ship
 ## Preamble
 
 ```bash
-source <(~/.jstack/bin/jstack-slug 2>/dev/null) || SLUG=$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null || echo "unknown")
-_PROJECT_DOC=~/.jstack/projects/$SLUG.md
-[ -f "$_PROJECT_DOC" ] && echo "PROJECT_DOC_FOUND" || echo "PROJECT_DOC_MISSING"
-_BRANCH=$(git branch --show-current 2>/dev/null || echo "unknown")
-echo "SLUG: $SLUG"
-echo "BRANCH: $_BRANCH"
-_MODEL=$(python3 -c "
-import json, os
-for path in [os.path.expanduser('~/.claude/settings.local.json'), os.path.expanduser('~/.claude/settings.json')]:
-    try:
-        with open(path) as f:
-            m = json.load(f).get('model', '')
-            if m: print(m); break
-    except: pass
-else: print('unknown')
-" 2>/dev/null)
-echo "$_MODEL" | grep -qi "opus" || echo "WRONG_MODEL: $_MODEL"
+~/.jstack/bin/jstack-preamble opus
 ```
 
-If `WRONG_MODEL` appears in the output: stop immediately and output:
-
-> Wrong model: this skill requires Opus. Run `/model claude-opus-4-6` then re-run.
-
-If `PROJECT_DOC_FOUND`: read `~/.jstack/projects/$SLUG.md`. Load the Conventions & Preferences section — it defines naming conventions, code style, and patterns to enforce in the Style & Convention dimension.
+If `WRONG_MODEL` in output: stop — tell user to run `/model claude-opus-4-6` then re-run.
+If `PROJECT_DOC_FOUND`: read `~/.jstack/projects/$SLUG.md` Conventions section for naming/style/patterns to enforce.
 
 ---
 
 ## Step 0: Detect base branch
 
-1. `gh pr view --json baseRefName -q .baseRefName` — use if succeeds
-2. `gh repo view --json defaultBranchRef -q .defaultBranchRef.name` — fallback
-3. `main` — final fallback
+1. `gh pr view --json baseRefName -q .baseRefName`
+2. `gh repo view --json defaultBranchRef -q .defaultBranchRef.name`
+3. Fallback: `main`
 
 ---
 
@@ -67,28 +48,24 @@ git branch --show-current
 git fetch origin <base> --quiet && git diff origin/<base> --stat
 ```
 
-If on base branch or no diff: "Nothing to review — you're on the base branch or have no changes." Stop.
+If on base branch or no diff: "Nothing to review." Stop.
 
 ---
 
 ## Step 1.5: Scope Drift Detection
 
-Did you build what was requested — nothing more, nothing less?
-
-1. Read `TODOS.md`, PR description (`gh pr view --json body --jq .body 2>/dev/null || true`), and commit messages (`git log origin/<base>..HEAD --oneline`).
-2. Identify **stated intent**.
-3. Compare `git diff origin/<base> --stat` against stated intent.
+1. Read `TODOS.md`, `gh pr view --json body --jq .body 2>/dev/null`, `git log origin/<base>..HEAD --oneline` — identify stated intent.
+2. Compare `git diff origin/<base> --stat` against stated intent.
 
 Output:
 ```
 Scope Check: [CLEAN / DRIFT DETECTED / REQUIREMENTS MISSING]
-Intent: <1-line summary of what was requested>
-Delivered: <1-line summary of what the diff actually does>
-[If drift: list each out-of-scope change]
-[If missing: list each unaddressed requirement]
+Intent: <1-line summary>
+Delivered: <1-line summary>
+[If drift: list out-of-scope changes] [If missing: list unaddressed requirements]
 ```
 
-This is **informational** — does not block the review.
+Informational only — does not block the review.
 
 ---
 
@@ -105,49 +82,25 @@ git diff origin/<base>
 
 ### Pass 1 — CRITICAL
 
-**SQL & Data Safety**
-- Raw SQL with user input without parameterisation
-- Missing transactions on multi-step writes
-- DELETE/UPDATE without WHERE clauses
-- Schema migrations without rollback strategy
+**SQL & Data Safety:** raw SQL with user input, missing transactions on multi-step writes, DELETE/UPDATE without WHERE, schema migrations without rollback.
 
-**Race Conditions & Concurrency**
-- Missing locks on shared state reads-then-writes
-- Optimistic locking patterns without conflict handling
-- Async operations with implicit ordering assumptions
+**Race Conditions:** missing locks on shared state read-then-write, optimistic locking without conflict handling, async operations with implicit ordering assumptions.
 
-**LLM Output Trust Boundary**
-- LLM output used directly in SQL, shell commands, or file paths
-- No validation before writing LLM output to the database
-- Prompt injection vectors (user input concatenated into prompts)
+**LLM Output Trust Boundary:** LLM output used directly in SQL/shell/file paths, no validation before DB write, user input concatenated into prompts.
 
-**Enum & Value Completeness**
-- New enum value added but not handled in all switch/match statements
-- New status/tier/type constant not covered in downstream logic
-- Use Grep to find sibling values, Read those files to check coverage
+**Enum & Value Completeness:** new enum/status/type not handled in all switch/match statements. Use Grep to find sibling values, Read those files to check coverage.
 
 ### Pass 2 — INFORMATIONAL
 
-**Conditional Side Effects**
-- Side effects (emails, charges, webhooks) inside conditionals that could be skipped silently
-- Missing logging around external service calls
+**Conditional Side Effects:** side effects (emails, charges, webhooks) inside conditionals that could be skipped silently; missing logging around external calls.
 
-**Magic Numbers & String Coupling**
-- Hardcoded values that should be constants or config
-- Strings that appear in multiple places and will drift
+**Magic Numbers & String Coupling:** hardcoded values that should be constants; strings appearing in multiple places that will drift.
 
-**Dead Code & Consistency**
-- Unused imports, variables, or functions introduced in the diff
-- Inconsistent patterns vs. the existing codebase
+**Dead Code & Consistency:** unused imports/variables/functions in the diff; inconsistent patterns vs. existing codebase.
 
-**Test Gaps**
-- New code paths introduced without corresponding tests
-- Modified behaviour without updated test assertions
+**Test Gaps:** new code paths without tests; modified behaviour without updated assertions.
 
-**Style & Convention** *(jstack addition)*
-- **Naming conventions:** Does naming match the patterns established in this codebase? (Read 2-3 similar files to calibrate — e.g., if existing files use `camelCase` for variables, flag `snake_case` in the diff.) Reference the Conventions section of the project-init doc if available.
-- **Formatting:** Mixed indentation, trailing whitespace, inconsistent brace/bracket style vs. surrounding code.
-- **Code style consistency:** Does the diff follow the same structural patterns as adjacent code? (e.g., if similar functions use early returns, does the new function do the same?)
+**Style & Convention:** naming conventions (read 2-3 similar files to calibrate); mixed indentation or formatting; structural patterns inconsistent with adjacent code. Reference Conventions section of project-init doc if available.
 
 ---
 
@@ -155,71 +108,44 @@ git diff origin/<base>
 
 Output: `Pre-Landing Review: N issues (X critical, Y informational)`
 
-### Classify each finding
+**AUTO-FIX** anything mechanical and low-risk (formatting, unused imports, obvious naming). For each: `[AUTO-FIXED] [file:line] Problem → what was done`
 
-- **AUTO-FIX:** Mechanical, low-risk, no meaningful alternatives (formatting, unused imports, obvious naming fixes, clear style inconsistencies)
-- **ASK:** Requires judgment, has real tradeoffs, or could change behaviour
-
-### Auto-fix all AUTO-FIX items
-
-For each: `[AUTO-FIXED] [file:line] Problem → what was done`
-
-### Batch-ask about ASK items
-
-Present all ASK items in one AskUserQuestion (or individually if ≤3):
-
+**ASK** about anything requiring judgment. Present all ASK items in one AskUserQuestion (or individually if ≤3):
 ```
 I auto-fixed N issues. M need your input:
-
-1. [CRITICAL] file.rb:42 — Race condition in status transition
-   Fix: Add WHERE status = 'pending' to the UPDATE
-   → A) Fix  B) Skip
-
-2. [INFORMATIONAL] service.js:88 — LLM output written to DB without validation
-   Fix: Add schema validation before write
-   → A) Fix  B) Skip
-
-RECOMMENDATION: Fix both — #1 is a real race condition, #2 prevents silent corruption.
+1. [CRITICAL] file:42 — Race condition in status transition
+   Fix: Add WHERE status = 'pending' to the UPDATE → A) Fix  B) Skip
+RECOMMENDATION: Fix both — #1 is a real race condition.
 ```
 
-Apply user-approved fixes immediately.
+Apply approved fixes immediately.
 
 ---
 
 ## Step 5: TODOS cross-reference
 
-Read `TODOS.md` if it exists.
-- Does this PR close any open TODOs? Note which.
-- Does this PR create work that should become a TODO? Flag as informational.
+Read `TODOS.md` if it exists. Note which TODOs this PR closes; flag any new work that should become a TODO.
 
 ---
 
 ## Step 6: Documentation staleness check
 
-For each `.md` doc in the repo root: if code it describes changed in this branch but the doc wasn't updated, flag as informational:
-"Documentation may be stale: [file] describes [feature] but code changed. Consider running /document."
+For each `.md` doc in the repo root: if the code it describes changed in this branch but the doc wasn't updated, flag as informational: "Documentation may be stale: [file]. Consider running /document."
 
 ---
 
 ## Important Rules
 
-- **Never `git push`** — committing locally is fine, but pushing must wait until the user runs `/code-ship`
+- **Never `git push`** — committing locally is fine, pushing waits for `/code-ship`
 
 ---
 
 ## Completion Status
 
-Output a summary:
 ```
 Pre-Landing Review complete.
-  Auto-fixed: N
-  User-approved fixes: N
-  Skipped: N
-  Scope drift: CLEAN / DETECTED
-  TODOs addressed: N
-  Stale docs: N
+  Auto-fixed: N | User-approved fixes: N | Skipped: N
+  Scope drift: CLEAN / DETECTED | TODOs addressed: N | Stale docs: N
 ```
 
-- **DONE** — Review complete, all findings actioned
-- **DONE_WITH_CONCERNS** — Completed with skipped critical items
-- **BLOCKED** — On base branch or no diff
+**DONE** — Review complete, all findings actioned | **DONE_WITH_CONCERNS** — Skipped critical items | **BLOCKED** — On base branch or no diff

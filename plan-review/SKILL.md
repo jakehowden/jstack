@@ -18,168 +18,103 @@ allowed-tools:
 
 # /plan-review
 
-Engineering review of a design plan before implementation begins. One issue per
-AskUserQuestion — never batch. Produces a locked plan and test plan artifact.
+Engineering review of a design plan before implementation begins. One issue per AskUserQuestion — never batch. Produces a locked plan and test plan artifact.
 
 ## Preamble
 
 ```bash
-source <(~/.jstack/bin/jstack-slug 2>/dev/null) || SLUG=$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null || echo "unknown")
-_PROJECT_DOC=~/.jstack/projects/$SLUG.md
-[ -f "$_PROJECT_DOC" ] && echo "PROJECT_DOC_FOUND" || echo "PROJECT_DOC_MISSING"
-_BRANCH=$(git branch --show-current 2>/dev/null || echo "unknown")
-echo "SLUG: $SLUG"
-echo "BRANCH: $_BRANCH"
-_MODEL=$(python3 -c "
-import json, os
-for path in [os.path.expanduser('~/.claude/settings.local.json'), os.path.expanduser('~/.claude/settings.json')]:
-    try:
-        with open(path) as f:
-            m = json.load(f).get('model', '')
-            if m: print(m); break
-    except: pass
-else: print('unknown')
-" 2>/dev/null)
-echo "$_MODEL" | grep -qi "opus" || echo "WRONG_MODEL: $_MODEL"
+~/.jstack/bin/jstack-preamble opus
 ```
 
-If `WRONG_MODEL` appears in the output: stop immediately and output:
+If `WRONG_MODEL` in output: stop — tell user to run `/model claude-opus-4-6` then re-run.
+If `PROJECT_DOC_FOUND`: read `~/.jstack/projects/$SLUG.md` for tech stack and conventions.
 
-> Wrong model: this skill requires Opus. Run `/model claude-opus-4-6` then re-run.
-
-If `PROJECT_DOC_FOUND`: read `~/.jstack/projects/$SLUG.md` for tech stack constraints and conventions. Reference throughout the review.
-
-Find the most recent design doc for this branch:
-```bash
-ls -t ~/.jstack/projects/$SLUG/*-$BRANCH-design-*.md 2>/dev/null | head -1
-```
-Read it. If none found, ask the user to point to the plan file or paste the plan.
+Find the most recent design doc: `ls -t ~/.jstack/projects/$SLUG/*-$BRANCH-design-*.md 2>/dev/null | head -1`
+Read it. If none found, ask user to point to the plan or paste it.
 
 ---
 
 ## AskUserQuestion Format
 
-For every AskUserQuestion:
-1. **Re-ground:** State the project, branch, and what we're deciding.
-2. **Plain English:** Explain the tradeoff clearly. No jargon.
-3. **Recommend:** `RECOMMENDATION: Choose [X] because [one-line reason]`
-4. **Options:** Lettered A) B) C) — include effort estimate where relevant.
+For every AskUserQuestion: re-ground in project/branch/decision, recommend an option, and provide lettered choices A) B) C).
 
-One issue = one AskUserQuestion. Never combine multiple issues into one question.
+One issue = one AskUserQuestion. Never combine.
 
 ---
 
 ## Step 0: Scope Challenge
 
-Before reviewing anything, answer:
-1. **What existing code already partially solves each sub-problem?** Can we reuse rather than rebuild?
-2. **Minimum change set:** What's the smallest diff that achieves the stated goal?
-3. **Complexity check:** If the plan touches >8 files or introduces >2 new classes/services, flag it and propose a minimal alternative.
-4. **TODOS cross-reference:** Read `TODOS.md` if it exists. Are any deferred items blocking this plan? Can any be bundled?
-
-If the complexity check triggers, use AskUserQuestion to propose scope reduction before continuing.
+1. What existing code partially solves each sub-problem? Can we reuse rather than rebuild?
+2. Minimum change set: what's the smallest diff that achieves the goal?
+3. If plan touches >8 files or introduces >2 new classes/services, flag and propose a minimal alternative via AskUserQuestion.
+4. Read `TODOS.md` if it exists — are any deferred items blocking or bundleable?
 
 ---
 
 ## Section 1: Architecture Review
 
-Evaluate:
-- System design and component boundaries
-- Dependency graph and coupling concerns
-- Data flow patterns and bottlenecks
-- Security architecture (auth, data access, API boundaries)
-- For each new integration point: one realistic production failure scenario
+Evaluate: system design and component boundaries, dependency coupling, data flow, security (auth/data access/API boundaries). For each new integration point: one realistic production failure scenario.
 
-**STOP after each issue.** One AskUserQuestion per issue. Resolve all before moving to Section 2.
+One AskUserQuestion per issue. Resolve all before Section 2.
 
 ---
 
 ## Section 2: Code Quality Review
 
-Evaluate:
-- Code organisation and module structure
-- DRY violations
-- Error handling and missing edge cases
-- Technical debt hotspots
-- Over- or under-engineering relative to project conventions
+Evaluate: code organisation, DRY violations, error handling and edge cases, technical debt hotspots, over/under-engineering vs. project conventions.
 
-**STOP after each issue.** One AskUserQuestion per issue. Resolve all before moving to Section 3.
+One AskUserQuestion per issue. Resolve all before Section 3.
 
 ---
 
 ## Section 3: Test Review
 
-Map all new UX, data flows, codepaths, and branching logic. For each, confirm there's a corresponding test.
+Map all new UX flows, data flows, codepaths, and branching logic. For each, confirm there's a corresponding test.
 
-**STOP after each issue.** One AskUserQuestion per issue. Resolve all before moving to Section 4.
+One AskUserQuestion per issue. Resolve all before Section 4.
 
 ### Test Plan Artifact
 
-After producing the test diagram, write a test plan:
-
 ```bash
-source <(~/.jstack/bin/jstack-slug 2>/dev/null)
-USER=$(whoami)
-DATETIME=$(date +%Y%m%d-%H%M%S)
-mkdir -p ~/.jstack/projects/$SLUG
+source <(~/.jstack/bin/jstack-slug 2>/dev/null) || SLUG=$(basename "$(git rev-parse --show-toplevel 2>/dev/null)")
+USER=$(whoami); DATETIME=$(date +%Y%m%d-%H%M%S); mkdir -p ~/.jstack/projects/$SLUG
 ```
 
 Write to `~/.jstack/projects/{slug}/{user}-{branch}-test-plan-{datetime}.md`:
-
-```markdown
+```
 # Test Plan
-Generated by /plan-review on {date}
-Branch: {branch}
-
-## Affected Pages/Routes
-- {URL or entry point} — {what to test and why}
-
-## Key Interactions to Verify
-- {interaction} on {page/component}
-
-## Edge Cases
-- {edge case description}
-
-## Critical Paths
-- {end-to-end flow that must work}
+Generated by /plan-review on {date} | Branch: {branch}
+## Affected Pages/Routes — {URL/entry point} — {what to test and why}
+## Key Interactions to Verify — {interaction} on {page/component}
+## Edge Cases — {description}
+## Critical Paths — {end-to-end flow that must work}
 ```
 
 ---
 
 ## Section 4: Performance Review
 
-Evaluate:
-- N+1 queries and database access patterns
-- Memory usage concerns
-- Caching opportunities
-- Slow or high-complexity code paths
+Evaluate: N+1 queries, memory usage, caching opportunities, slow/high-complexity paths.
 
-**STOP after each issue.** One AskUserQuestion per issue.
+One AskUserQuestion per issue.
 
 ---
 
 ## Required Outputs
 
-### "NOT in scope" section
-List work considered and explicitly deferred, with one-line rationale each.
+**NOT in scope:** List deferred work with one-line rationale each.
 
-### "What already exists" section
-List existing code that partially solves sub-problems and whether the plan reuses it.
+**What already exists:** List existing code that partially solves sub-problems; note whether plan reuses it.
 
-### TODOS.md updates
-One AskUserQuestion per potential TODO. Never batch. For each:
-- **What:** One-line description
-- **Why:** Concrete problem it solves
-- **Context:** Enough detail for someone picking it up in 3 months
+**TODOS.md updates:** One AskUserQuestion per potential TODO (never batch):
+- What: one-line description | Why: concrete problem it solves | Context: enough for pickup in 3 months
 - Options: A) Add to TODOS.md  B) Skip  C) Build it now
 
-### Failure modes
-For each new codepath: one realistic production failure and whether a test covers it. If no test AND no error handling AND silent failure → **critical gap**.
+**Failure modes:** For each new codepath: one realistic production failure + whether a test covers it. No test AND no error handling AND silent failure → **critical gap**.
 
-### Completion Summary
-
+**Completion Summary:**
 ```
-- Step 0: Scope — [accepted as-is / reduced]
+- Step 0: Scope — [accepted / reduced]
 - Architecture: N issues
 - Code Quality: N issues
 - Tests: diagram produced, N gaps
@@ -194,13 +129,6 @@ For each new codepath: one realistic production failure and whether a test cover
 
 ## Handoff
 
-Once review is complete, tell the user:
 "Plan locked. Time to write code — **switch to Sonnet** for implementation: `/model claude-sonnet-4-6`. When done, run **/code-review** (it will remind you to switch back to Opus), then **/code-ship** to ship."
 
----
-
-## Completion Status
-
-- **DONE** — All sections reviewed, test plan written, completion summary output
-- **DONE_WITH_CONCERNS** — Completed with open items or critical gaps
-- **BLOCKED** — No plan found or user aborted
+**DONE** — All sections reviewed, test plan written, summary output | **DONE_WITH_CONCERNS** — Completed with open items or critical gaps | **BLOCKED** — No plan found or user aborted

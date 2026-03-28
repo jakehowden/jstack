@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# skill-lint — warn when any SKILL.md exceeds the size threshold
+# Usage: ./bin/skill-lint [--threshold N]  (default: 8192 chars)
+set -euo pipefail
+
+THRESHOLD=8192
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --threshold) THRESHOLD="$2"; shift 2 ;;
+    *) echo "Usage: skill-lint [--threshold N]" >&2; exit 1 ;;
+  esac
+done
+
+PASS=0; FAIL=0
+while IFS= read -r -d '' f; do
+  SIZE=$(wc -c < "$f")
+  if [ "$SIZE" -gt "$THRESHOLD" ]; then
+    printf "WARN  %-40s %d chars (%d over limit)\n" "$f" "$SIZE" "$((SIZE - THRESHOLD))"
+    FAIL=$((FAIL + 1))
+  else
+    printf "OK    %-40s %d chars\n" "$f" "$SIZE"
+    PASS=$((PASS + 1))
+  fi
+done < <(find . -name "SKILL.md" -not -path "./.git/*" -print0 | sort -z)
+
+echo "---"
+printf "Passed: %d  Failed: %d  Threshold: %d chars\n" "$PASS" "$FAIL" "$THRESHOLD"
+[ "$FAIL" -eq 0 ]

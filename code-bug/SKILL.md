@@ -17,148 +17,71 @@ allowed-tools:
 
 # /code-bug
 
-File a bug as a structured GitHub issue. Gathers repro steps, expected vs actual
-behavior, checks for duplicates, and creates the issue.
+File a bug as a structured GitHub issue. Gathers repro steps, expected vs actual, checks for duplicates, and creates the issue.
 
 ## Preamble
 
 ```bash
-source <(~/.jstack/bin/jstack-slug 2>/dev/null) || SLUG=$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null || echo "unknown")
-_PROJECT_DOC=~/.jstack/projects/$SLUG.md
-[ -f "$_PROJECT_DOC" ] && echo "PROJECT_DOC_FOUND" || echo "PROJECT_DOC_MISSING"
-_BRANCH=$(git branch --show-current 2>/dev/null || echo "unknown")
-echo "SLUG: $SLUG"
-echo "BRANCH: $_BRANCH"
+~/.jstack/bin/jstack-preamble any
 ```
 
-If `PROJECT_DOC_FOUND`: read `~/.jstack/projects/$SLUG.md`. Use the tech stack section to add context to the issue.
-
-If `PROJECT_DOC_MISSING`: continue without it — the skill works standalone.
+If `PROJECT_DOC_FOUND`: read `~/.jstack/projects/$SLUG.md` tech stack section — add context to the issue.
 
 ---
 
 ## AskUserQuestion Format
 
-For every AskUserQuestion:
-1. **Re-ground:** State the project and what we're deciding. (1-2 sentences)
-2. **Plain English:** Explain what information is needed and why.
-3. **Options:** Lettered A) B) C)
+For every AskUserQuestion: re-ground in project/decision, explain what information is needed and why, provide lettered choices A) B) C).
 
 ---
 
 ## Phase 1: Context Gathering
 
 1. Read `TODOS.md` if it exists.
-2. Run `git log --oneline -10` to understand recent context.
-3. Check existing open issues:
-   ```bash
-   gh issue list --state open --limit 10 --json number,title --jq '.[] | "#\(.number) \(.title)"' 2>/dev/null
-   ```
-   Hold this list for the duplicate check in Phase 3.
+2. `git log --oneline -10`
+3. `gh issue list --state open --limit 10 --json number,title --jq '.[] | "#\(.number) \(.title)"' 2>/dev/null` — save for duplicate check in Phase 3.
 
 ---
 
-## Phase 2: Bug Description
+## Phase 2: Bug Description (one at a time)
 
-Ask these **one at a time** via AskUserQuestion. Stop after each — wait for the answer.
+**Q1** — What's the bug? What's going wrong?
+**Q2** — Reproduction steps: what steps trigger this?
+**Q3** — Expected vs actual: what did you expect, and what happened? Include error messages.
+**Q4** — Severity: A) Blocker (can't work around it) | B) Major (workaround exists) | C) Minor (cosmetic/low-impact)
 
-**Q1 — What's the bug?**
-> What's going wrong? Describe the bug you've found.
-
-**Q2 — Reproduction steps**
-> What steps trigger this? Walk me through what you did.
-
-**Q3 — Expected vs actual**
-> What did you expect to happen, and what actually happened? Include any error messages.
-
-**Q4 — Severity**
-> How severe is this?
->
-> A) Blocker — can't work around it, blocks progress
-> B) Major — significant impact but has a workaround
-> C) Minor — cosmetic or low-impact
-
-**Smart-skip:** If the user's initial prompt already answers a question clearly, skip it. Only ask questions whose answers aren't yet known.
+Smart-skip any question the user's initial prompt already answers.
 
 ---
 
 ## Phase 3: Duplicate Check
 
-Extract keywords from the bug description and search existing issues:
-```bash
-gh issue list --state open --search "<keywords>" --json number,title,url --jq '.[] | "#\(.number) \(.title) — \(.url)"' 2>/dev/null
-```
+`gh issue list --state open --search "<keywords>" --json number,title,url --jq '.[] | "#\(.number) \(.title) — \(.url)"' 2>/dev/null`
 
-**If potential duplicates found:** present them via AskUserQuestion:
+If potential duplicates found, ask via AskUserQuestion: "These open issues look related: [list]. Is your bug the same as any? A) Yes — tell me which number (I'll add a comment) | B) No — file a new issue"
 
-> These open issues look related:
->
-> 1. #42 — Login redirect loop
-> 2. #38 — Dashboard crash on empty data
->
-> Is your bug the same as any of these?
->
-> A) Yes — tell me which number (I'll add a comment instead)
-> B) No — file a new issue
-
-**On "Yes":** Add a comment to the existing issue with the new reproduction details:
-```bash
-gh issue comment <number> --body "<repro details from Phase 2>"
-```
-Output the issue URL. Skip to Phase 5.
-
-**On "No":** Continue to Phase 4.
-
-**If no duplicates found:** Continue to Phase 4 silently.
+On "Yes": `gh issue comment <number> --body "<repro details from Phase 2>"` — output URL, skip to Phase 5.
+On "No" or no duplicates: continue to Phase 4.
 
 ---
 
 ## Phase 4: Issue Creation
 
-Generate the issue body:
-
-```markdown
-## Bug Report
-
-**Description**
-{user's bug description from Q1}
-
-**Reproduction Steps**
-1. {step from Q2}
-2. {step}
-
-**Expected Behavior**
-{expected from Q3}
-
-**Actual Behavior**
-{actual from Q3}
-
-**Severity**
-{Blocker / Major / Minor from Q4}
-
-**Context**
-- Branch: {current branch}
-- Recent commits: {last 3 commit summaries from git log}
-```
-
-Create the issue:
 ```bash
 gh issue create \
   --title "Bug: {concise summary}" \
   --body "$(cat <<'EOF'
-<generated body>
+## Bug Report
+**Description:** {Q1}
+**Reproduction Steps:** {Q2 as numbered list}
+**Expected:** {Q3 expected} | **Actual:** {Q3 actual}
+**Severity:** {Q4}
+**Context:** Branch: {branch} | Recent commits: {last 3 from git log}
 EOF
 )" \
   --label bug 2>/dev/null || \
-gh issue create \
-  --title "Bug: {concise summary}" \
-  --body "$(cat <<'EOF'
-<generated body>
-EOF
-)"
+gh issue create --title "Bug: {concise summary}" --body "<same body without --label>"
 ```
-
-The first attempt includes `--label bug`. If it fails (label doesn't exist), the fallback creates the issue without a label.
 
 Output the issue URL.
 
@@ -166,18 +89,8 @@ Output the issue URL.
 
 ## Phase 5: Next Steps
 
-Ask via AskUserQuestion:
+Ask via AskUserQuestion: "Issue filed. What next? A) Start debugging now — run /debug | B) Done for now"
 
-> Issue filed. What next?
->
-> A) Start debugging now — I'll run /debug to investigate the root cause
-> B) Done for now
+On "Start debugging": "Run **/debug** to start investigating."
 
-**On "Start debugging":** Tell the user: "Run **/debug** to start investigating."
-
----
-
-## Completion Status
-
-- **DONE** — Issue created (or comment added to existing issue)
-- **BLOCKED** — `gh` auth issues, no git repo, or user aborted
+**DONE** — Issue created or comment added | **BLOCKED** — gh auth issues, no git repo, or user aborted

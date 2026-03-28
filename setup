@@ -16,6 +16,10 @@ cp "$JSTACK_DIR/bin/jstack-slug" "$JSTACK_HOME/bin/jstack-slug"
 chmod +x "$JSTACK_HOME/bin/jstack-slug"
 echo "  ✓ bin/jstack-slug"
 
+cp "$JSTACK_DIR/bin/jstack-preamble" "$JSTACK_HOME/bin/jstack-preamble"
+chmod +x "$JSTACK_HOME/bin/jstack-preamble"
+echo "  ✓ bin/jstack-preamble"
+
 # Link skills to ~/.claude/skills/
 mkdir -p "$SKILLS_DIR"
 for skill in project-init plan-feature plan-review debug document code-review code-ship testing code-bug; do

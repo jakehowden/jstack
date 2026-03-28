@@ -201,6 +201,12 @@ For each `.md` doc in the repo root: if code it describes changed in this branch
 
 ---
 
+## Important Rules
+
+- **Never `git push`** — committing locally is fine, but pushing must wait until the user runs `/code-ship`
+
+---
+
 ## Completion Status
 
 Output a summary:

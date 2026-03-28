@@ -186,6 +186,7 @@ Status:          DONE | DONE_WITH_CONCERNS | BLOCKED
 - **Never apply a fix you cannot verify**
 - **Never say "this should fix it"** — prove it
 - **If fix touches >5 files → AskUserQuestion** about blast radius
+- **Never `git push`** — committing locally is fine, but pushing must wait until the user runs `/code-ship`
 
 ## Completion Status
 
